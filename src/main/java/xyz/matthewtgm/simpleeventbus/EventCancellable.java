@@ -6,7 +6,7 @@ package xyz.matthewtgm.simpleeventbus;
  * @author MatthewTGM
  * @since 1.0
  */
-public class EventCancellable {
+public class EventCancellable extends Event {
 
     private boolean cancelled;
 

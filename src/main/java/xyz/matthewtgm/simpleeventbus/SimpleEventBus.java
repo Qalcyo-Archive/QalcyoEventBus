@@ -1,0 +1,144 @@
+package xyz.matthewtgm.simpleeventbus;
+
+import xyz.matthewtgm.simpleeventbus.events.ShutdownEvent;
+
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * @author MatthewTGM
+ * @since 1.0
+ */
+public class SimpleEventBus {
+
+    private final Map<Class<? extends Event>, ArrayList<EventData>> REGISTRY_MAP = new HashMap<>();
+
+    public SimpleEventBus() {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> call(new ShutdownEvent())));
+    }
+
+    private void sortListValue(Class<? extends Event> clazz) {
+        ArrayList<EventData> flexibleArray = new ArrayList<>();
+        for (EventPriority priority : EventPriority.values())
+            for (EventData methodData : this.REGISTRY_MAP.get(clazz))
+                if (methodData.priority == priority)
+                    flexibleArray.add(methodData);
+        REGISTRY_MAP.put(clazz, flexibleArray);
+    }
+
+    private boolean isMethodBad(Method method) {
+        return method.getParameterTypes().length != 1 || !method.isAnnotationPresent(EventSubscriber.class);
+    }
+
+    private boolean isMethodBad(Method method, Class<? extends Event> clazz) {
+        return isMethodBad(method) || method.getParameterTypes()[0].equals(clazz);
+    }
+
+    private ArrayList<EventData> get(final Class<? extends Event> clazz) {
+        return REGISTRY_MAP.get(clazz);
+    }
+
+    private void cleanMap() {
+        REGISTRY_MAP.entrySet().removeIf(classArrayListEntry -> classArrayListEntry.getValue().isEmpty());
+    }
+
+    /**
+     * Removes the object from the registry map, making all subscribed methods unsubscribed.
+     *
+     * @param o The object to unregister.
+     *
+     * @author MatthewTGM
+     * @since 0.0.1
+     */
+    public void unregister(Object o) {
+        for (ArrayList<EventData> flexibleArray : REGISTRY_MAP.values())
+            for (int i = flexibleArray.size() - 1; i >= 0; i--)
+                if (flexibleArray.get(i).source.equals(o))
+                    flexibleArray.remove(i);
+        cleanMap();
+    }
+
+    private void register(Method method, Object o) {
+        Class<?> clazz = method.getParameterTypes()[0];
+        EventData methodData = new EventData(o, method, method.getAnnotation(EventSubscriber.class).priority());
+        methodData.target.setAccessible(true);
+        if (REGISTRY_MAP.containsKey(clazz)) {
+            if (!REGISTRY_MAP.get(clazz).contains(methodData)) {
+                REGISTRY_MAP.get(clazz).add(methodData);
+                sortListValue((Class<? extends Event>) clazz);
+            }
+        } else {
+            REGISTRY_MAP.put((Class<? extends Event>) clazz, new ArrayList<EventData>() {
+                {
+                    add(methodData);
+                }
+            });
+        }
+    }
+
+    /**
+     * Registers an object as an event subscriber.
+     *
+     * @param o
+     *
+     * @author MatthewTGM
+     * @since 0.0.1
+     */
+    public void register(Object o) {
+        for (Method method : o.getClass().getDeclaredMethods()) {
+            method.setAccessible(true);
+            if (!isMethodBad(method))
+                register(method, o);
+        }
+    }
+
+    /**
+     * Registers multiple objects as event subscribers.
+     *
+     * @param o The objects to register.
+     *
+     * @author MatthewTGM
+     * @since 0.0.1
+     */
+    public void register(Object... o) {
+        for (Object clz : o)
+            register(clz);
+    }
+
+    /**
+     * Calls the event passed into the parameters.
+     *
+     * @param event The event to call.
+     *
+     * @author MatthewTGM
+     * @since 0.0.1
+     */
+    public void call(Event event) {
+        List<EventData> dataList = get(event.getClass());
+        if (dataList != null) {
+            for (EventData data : dataList) {
+                try {
+                    data.target.invoke(data.source, event);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    private static class EventData {
+        public final Object source;
+        public final Method target;
+        public final EventPriority priority;
+
+        public EventData(Object source, Method target, EventPriority priority) {
+            this.source = source;
+            this.target = target;
+            this.priority = priority;
+        }
+    }
+
+}

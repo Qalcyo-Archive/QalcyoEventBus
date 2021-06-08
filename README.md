@@ -1,5 +1,7 @@
 <div align="center">
 
+[![](https://jitpack.io/v/xyz.matthewtgm/SimpleEventBus.svg)](https://jitpack.io/#xyz.matthewtgm/SimpleEventBus)
+
 # SimpleEventBus
 ## An easy-to-use event bus "API".
 [![forthebadge](https://forthebadge.com/images/badges/makes-people-smile.svg)](https://forthebadge.com)

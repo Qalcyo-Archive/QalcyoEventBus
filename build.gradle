@@ -3,5 +3,5 @@ plugins {
 }
 
 group = 'xyz.matthewtgm.simpleeventbus'
-version = '1.2'
+version = '1.2.1'
 archivesBaseName = "SimpleEventBus"

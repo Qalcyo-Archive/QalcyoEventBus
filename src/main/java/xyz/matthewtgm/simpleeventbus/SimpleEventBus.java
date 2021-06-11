@@ -16,11 +16,15 @@ import java.util.Map;
 @SuppressWarnings({"unused", "unchecked"})
 public class SimpleEventBus {
 
-    private final Map<Class<? extends Event>, ArrayList<EventData>> REGISTRY_MAP = new HashMap<>();
+    private static boolean shutdownEventRegistered;
+    private static final Map<Class<? extends Event>, ArrayList<EventData>> REGISTRY_MAP = new HashMap<>();
     private int eventCallAttempts;
 
     public SimpleEventBus() {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> call(new ShutdownEvent())));
+        if (!shutdownEventRegistered) {
+            shutdownEventRegistered = true;
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> call(new ShutdownEvent())));
+        }
     }
 
     private void sortListValue(Class<? extends Event> clazz) {

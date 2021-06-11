@@ -1,8 +1,7 @@
-apply plugin: 'java'
+plugins {
+    id 'java'
+}
 
 group = 'xyz.matthewtgm.simpleeventbus'
-version = '1.1'
-
-repositories {}
-
-dependencies {}
+version = '1.2'
+archivesBaseName = "SimpleEventBus"

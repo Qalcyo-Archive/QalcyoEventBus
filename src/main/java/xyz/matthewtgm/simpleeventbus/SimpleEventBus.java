@@ -1,5 +1,6 @@
 package xyz.matthewtgm.simpleeventbus;
 
+import xyz.matthewtgm.simpleeventbus.events.EventListenerRegisteredEvent;
 import xyz.matthewtgm.simpleeventbus.events.ShutdownEvent;
 
 import java.lang.reflect.Method;
@@ -12,9 +13,11 @@ import java.util.Map;
  * @author MatthewTGM
  * @since 1.0
  */
+@SuppressWarnings({"unused", "unchecked"})
 public class SimpleEventBus {
 
     private final Map<Class<? extends Event>, ArrayList<EventData>> REGISTRY_MAP = new HashMap<>();
+    private int eventCallAttempts;
 
     public SimpleEventBus() {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> call(new ShutdownEvent())));
@@ -31,10 +34,6 @@ public class SimpleEventBus {
 
     private boolean isMethodBad(Method method) {
         return method.getParameterTypes().length != 1 || !method.isAnnotationPresent(EventSubscriber.class);
-    }
-
-    private boolean isMethodBad(Method method, Class<? extends Event> clazz) {
-        return isMethodBad(method) || method.getParameterTypes()[0].equals(clazz);
     }
 
     private ArrayList<EventData> get(final Class<? extends Event> clazz) {
@@ -82,16 +81,16 @@ public class SimpleEventBus {
     /**
      * Registers an object as an event subscriber.
      *
-     * @param o
-     *
      * @author MatthewTGM
      * @since 0.0.1
      */
     public void register(Object o) {
         for (Method method : o.getClass().getDeclaredMethods()) {
             method.setAccessible(true);
-            if (!isMethodBad(method))
+            if (!isMethodBad(method)) {
                 register(method, o);
+                call(new EventListenerRegisteredEvent(o.getClass(), method));
+            }
         }
     }
 
@@ -118,15 +117,32 @@ public class SimpleEventBus {
      */
     public void call(Event event) {
         List<EventData> dataList = get(event.getClass());
-        if (dataList != null) {
-            for (EventData data : dataList) {
-                try {
+        if (eventCallAttempts < 5 && dataList != null) {
+            try {
+                for (EventData data : dataList)
                     data.target.invoke(data.source, event);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                eventCallAttempts++;
+                System.out.println("Failed to call " + event.getClass().getSimpleName() + ". Attempting to call it for the " + getNumberWithPrefix(eventCallAttempts) + " time.");
+                call(event);
             }
+
+            eventCallAttempts = 0;
         }
+    }
+
+    private String getNumberWithPrefix(int num) {
+        if (num <= 1)
+            return num + "st";
+        else if (num == 2)
+            return num + "nd";
+        else if (num == 3)
+            return num + "rd";
+        else if (num >= 4)
+            return num + "th";
+        else
+            return String.valueOf(num);
     }
 
     private static class EventData {

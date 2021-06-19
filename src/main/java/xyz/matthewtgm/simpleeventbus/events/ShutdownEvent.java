@@ -7,4 +7,9 @@ import xyz.matthewtgm.simpleeventbus.Event;
  * @author MatthewTGM
  * @since 1.0
  */
-public class ShutdownEvent extends Event {}
+public class ShutdownEvent extends Event {
+    public final Runnable hook;
+    public ShutdownEvent(Runnable hook) {
+        this.hook = hook;
+    }
+}

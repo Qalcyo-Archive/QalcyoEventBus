@@ -1,6 +1,8 @@
 package xyz.matthewtgm.simpleeventbus;
 
-import xyz.matthewtgm.simpleeventbus.events.EventListenerRegisteredEvent;
+import xyz.matthewtgm.simpleeventbus.events.CallFailedEvent;
+import xyz.matthewtgm.simpleeventbus.events.ListenerRegisteredEvent;
+import xyz.matthewtgm.simpleeventbus.events.ListenerUnregisteredEvent;
 import xyz.matthewtgm.simpleeventbus.events.ShutdownEvent;
 
 import java.lang.reflect.Method;
@@ -16,14 +18,18 @@ import java.util.Map;
 @SuppressWarnings({"unused", "unchecked"})
 public class SimpleEventBus {
 
-    private static boolean shutdownEventRegistered;
+    static boolean shutdownEventRegistered;
     private static final Map<Class<? extends Event>, ArrayList<EventData>> REGISTRY_MAP = new HashMap<>();
     private int eventCallAttempts;
 
     public SimpleEventBus() {
         if (!shutdownEventRegistered) {
             shutdownEventRegistered = true;
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> call(new ShutdownEvent())));
+            Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+                public void run() {
+                    call(new ShutdownEvent(this));
+                }
+            }));
         }
     }
 
@@ -57,11 +63,15 @@ public class SimpleEventBus {
      * @since 0.0.1
      */
     public void unregister(Object o) {
-        for (ArrayList<EventData> flexibleArray : REGISTRY_MAP.values())
-            for (int i = flexibleArray.size() - 1; i >= 0; i--)
-                if (flexibleArray.get(i).source.equals(o))
-                    flexibleArray.remove(i);
-        cleanMap();
+        ListenerUnregisteredEvent listenerUnregisteredEvent = new ListenerUnregisteredEvent(o.getClass());
+        call(listenerUnregisteredEvent);
+        if (!listenerUnregisteredEvent.isCancelled()) {
+            for (ArrayList<EventData> flexibleArray : REGISTRY_MAP.values())
+                for (int i = flexibleArray.size() - 1; i >= 0; i--)
+                    if (flexibleArray.get(i).source.equals(o))
+                        flexibleArray.remove(i);
+            cleanMap();
+        }
     }
 
     private void register(Method method, Object o) {
@@ -92,8 +102,9 @@ public class SimpleEventBus {
         for (Method method : o.getClass().getDeclaredMethods()) {
             method.setAccessible(true);
             if (!isMethodBad(method)) {
-                register(method, o);
-                call(new EventListenerRegisteredEvent(o.getClass(), method));
+                ListenerRegisteredEvent listenerRegisteredEvent = new ListenerRegisteredEvent(o.getClass(), method);
+                call(listenerRegisteredEvent);
+                if (!listenerRegisteredEvent.isCancelled()) register(method, o);
             }
         }
     }
@@ -129,10 +140,21 @@ public class SimpleEventBus {
                 e.printStackTrace();
                 eventCallAttempts++;
                 System.out.println("Failed to call " + event.getClass().getSimpleName() + ". Attempting to call it for the " + getNumberWithPrefix(eventCallAttempts) + " time.");
+                callBasic(new CallFailedEvent(event, event.getClass(), eventCallAttempts)); /* This should NEVER fail. So if it does, please report it. */
                 call(event);
             }
+        }
+    }
 
-            eventCallAttempts = 0;
+    public void callBasic(Event event) {
+        List<EventData> dataList = get(event.getClass());
+        if (dataList != null) {
+            try {
+                for (EventData data : dataList)
+                    data.target.invoke(data.source, event);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 

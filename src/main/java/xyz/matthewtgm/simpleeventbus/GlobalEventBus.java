@@ -6,8 +6,9 @@ package xyz.matthewtgm.simpleeventbus;
  */
 public class GlobalEventBus {
     private static SimpleEventBus bus;
-    public static SimpleEventBus get() {
-        if (bus == null) bus = new SimpleEventBus();
+    public static SimpleEventBus bus() {
+        if (bus == null)
+            bus = new SimpleEventBus();
         return bus;
     }
 }

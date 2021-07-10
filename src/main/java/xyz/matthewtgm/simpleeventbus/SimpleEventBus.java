@@ -1,8 +1,5 @@
 package xyz.matthewtgm.simpleeventbus;
 
-import xyz.matthewtgm.simpleeventbus.events.CallFailedEvent;
-import xyz.matthewtgm.simpleeventbus.events.ListenerRegisteredEvent;
-import xyz.matthewtgm.simpleeventbus.events.ListenerUnregisteredEvent;
 import xyz.matthewtgm.simpleeventbus.events.ShutdownEvent;
 
 import java.lang.reflect.Method;
@@ -29,14 +26,14 @@ public class SimpleEventBus {
                 public void run() {
                     call(new ShutdownEvent(this));
                 }
-            }));
+            }, "SimpleEventBus Shutdown"));
         }
     }
 
     private void sortListValue(Class<? extends Event> clazz) {
         ArrayList<EventData> flexibleArray = new ArrayList<>();
         for (EventPriority priority : EventPriority.values())
-            for (EventData methodData : this.REGISTRY_MAP.get(clazz))
+            for (EventData methodData : REGISTRY_MAP.get(clazz))
                 if (methodData.priority == priority)
                     flexibleArray.add(methodData);
         REGISTRY_MAP.put(clazz, flexibleArray);
@@ -60,18 +57,14 @@ public class SimpleEventBus {
      * @param o The object to unregister.
      *
      * @author MatthewTGM
-     * @since 0.0.1
+     * @since 1.0
      */
     public void unregister(Object o) {
-        ListenerUnregisteredEvent listenerUnregisteredEvent = new ListenerUnregisteredEvent(o.getClass());
-        call(listenerUnregisteredEvent);
-        if (!listenerUnregisteredEvent.isCancelled()) {
-            for (ArrayList<EventData> flexibleArray : REGISTRY_MAP.values())
-                for (int i = flexibleArray.size() - 1; i >= 0; i--)
-                    if (flexibleArray.get(i).source.equals(o))
-                        flexibleArray.remove(i);
-            cleanMap();
-        }
+        for (ArrayList<EventData> flexibleArray : REGISTRY_MAP.values())
+            for (int i = flexibleArray.size() - 1; i >= 0; i--)
+                if (flexibleArray.get(i).source.equals(o))
+                    flexibleArray.remove(i);
+        cleanMap();
     }
 
     private void register(Method method, Object o) {
@@ -96,16 +89,13 @@ public class SimpleEventBus {
      * Registers an object as an event subscriber.
      *
      * @author MatthewTGM
-     * @since 0.0.1
+     * @since 1.0
      */
     public void register(Object o) {
         for (Method method : o.getClass().getDeclaredMethods()) {
             method.setAccessible(true);
-            if (!isMethodBad(method)) {
-                ListenerRegisteredEvent listenerRegisteredEvent = new ListenerRegisteredEvent(o.getClass(), method);
-                call(listenerRegisteredEvent);
-                if (!listenerRegisteredEvent.isCancelled()) register(method, o);
-            }
+            if (!isMethodBad(method))
+                register(method, o);
         }
     }
 
@@ -115,7 +105,7 @@ public class SimpleEventBus {
      * @param o The objects to register.
      *
      * @author MatthewTGM
-     * @since 0.0.1
+     * @since 1.0
      */
     public void register(Object... o) {
         for (Object clz : o)
@@ -128,7 +118,7 @@ public class SimpleEventBus {
      * @param event The event to call.
      *
      * @author MatthewTGM
-     * @since 0.0.1
+     * @since 1.0
      */
     public void call(Event event) {
         List<EventData> dataList = get(event.getClass());
@@ -138,9 +128,10 @@ public class SimpleEventBus {
                     data.target.invoke(data.source, event);
             } catch (Exception e) {
                 e.printStackTrace();
+                if (e.getMessage().equalsIgnoreCase("Attempted to cancel an uncancellable event."))
+                    return;
                 eventCallAttempts++;
                 System.out.println("Failed to call " + event.getClass().getSimpleName() + ". Attempting to call it for the " + getNumberWithPrefix(eventCallAttempts) + " time.");
-                callBasic(new CallFailedEvent(event, event.getClass(), eventCallAttempts)); /* This should NEVER fail. So if it does, please report it. */
                 call(event);
             }
         }

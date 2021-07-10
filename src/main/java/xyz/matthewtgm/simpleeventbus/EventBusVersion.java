@@ -2,7 +2,7 @@ package xyz.matthewtgm.simpleeventbus;
 
 public class EventBusVersion {
 
-    public static final EventBusVersion CURRENT = new EventBusVersion(1, 5, 0);
+    public static final EventBusVersion CURRENT = new EventBusVersion(2, 0, 0);
 
     public final int major;
     public final int minor;

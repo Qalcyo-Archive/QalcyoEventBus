@@ -1,5 +1,7 @@
-apply plugin: 'java'
+plugins {
+    id 'java'
+}
 
-group = 'xyz.matthewtgm.simpleeventbus'
-version = '2.0'
-archivesBaseName = "SimpleEventBus"
+group = 'xyz.qalcyo.eventbus'
+version = '4.0'
+archivesBaseName = 'QalcyoEventBus'

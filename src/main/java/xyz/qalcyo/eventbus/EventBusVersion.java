@@ -1,8 +1,8 @@
-package xyz.matthewtgm.simpleeventbus;
+package xyz.qalcyo.eventbus;
 
 public class EventBusVersion {
 
-    public static final EventBusVersion CURRENT = new EventBusVersion(2, 0, 0);
+    public static final EventBusVersion CURRENT = new EventBusVersion(4, 0, 0);
 
     public final int major;
     public final int minor;

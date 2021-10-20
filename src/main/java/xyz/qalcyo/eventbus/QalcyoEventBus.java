@@ -76,8 +76,11 @@ public class QalcyoEventBus {
 
     public void post(Event event) {
         try {
-            for (EventData data : registry.get(event.getClass())) {
-                data.target.invoke(data.source, event);
+            List<EventData> registered = registry.get(event.getClass());
+            if (registered != null) {
+                for (EventData data : registry.get(event.getClass())) {
+                    data.target.invoke(data.source, event);
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();

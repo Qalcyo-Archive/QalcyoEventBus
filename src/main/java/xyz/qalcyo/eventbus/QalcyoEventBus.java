@@ -47,14 +47,67 @@ public class QalcyoEventBus {
         }
     }
 
-    public void register(Object instance) {
+    private void registerReflection(Object instance, Method method) {
+        method.setAccessible(true);
+        if (!isBadMethod(method)) {
+            register((Class<? extends Event>) method.getParameterTypes()[0], method, instance);
+        }
+    }
+
+    private void registerInterface(Object instance, Class<?> clazz) {
+        for (Class<?> inter : clazz.getInterfaces()) {
+            Class<?> interSup = inter.getSuperclass();
+            for (Method method : inter.getDeclaredMethods()) {
+                registerReflection(instance, method);
+            }
+
+            while (interSup != null && (interSup = interSup.getSuperclass()) != null) {
+                for (Method method : interSup.getDeclaredMethods()) {
+                    registerReflection(instance, method);
+                }
+            }
+
+            registerInterface(instance, inter);
+        }
+    }
+
+    public void register(Object instance, SubscriberDepth depth) {
         Objects.requireNonNull(instance);
-        for (Method method : instance.getClass().getDeclaredMethods()) {
-            method.setAccessible(true);
-            if (!isBadMethod(method)) {
-                register((Class<? extends Event>) method.getParameterTypes()[0], method, instance);
+        Class<?> clazz = instance.getClass();
+        for (Method method : clazz.getDeclaredMethods()) {
+            registerReflection(instance, method);
+        }
+
+        if (depth == SubscriberDepth.SUPER) {
+            for (Method method : clazz.getSuperclass().getDeclaredMethods()) {
+                registerReflection(instance, method);
+            }
+
+            for (Class<?> inter : clazz.getInterfaces()) {
+                for (Method method : inter.getDeclaredMethods()) {
+                    registerReflection(instance, method);
+                }
             }
         }
+
+        if (depth == SubscriberDepth.DEEP_SUPER) {
+            Class<?> sup = clazz.getSuperclass();
+            for (Method method : sup.getDeclaredMethods()) {
+                registerReflection(instance, method);
+            }
+
+            while ((sup = sup.getSuperclass()) != null) {
+                for (Method method : sup.getDeclaredMethods()) {
+                    registerReflection(instance, method);
+                }
+            }
+
+            registerInterface(instance, clazz);
+        }
+    }
+
+    public void register(Object instance) {
+        register(instance, SubscriberDepth.NONE);
     }
 
     public <T extends Event> void register(Class<T> clazz, Consumer<T> processor) {

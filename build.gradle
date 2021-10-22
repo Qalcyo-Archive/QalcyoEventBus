@@ -3,5 +3,5 @@ plugins {
 }
 
 group = 'xyz.qalcyo.eventbus'
-version = '4.0.1'
+version = '4.1'
 archivesBaseName = 'QalcyoEventBus'
